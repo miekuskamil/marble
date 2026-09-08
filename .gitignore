@@ -1,0 +1,22 @@
+# Build / deploy artifacts
+*.zip
+
+# PWABuilder output — NEVER commit the signing keystore or its passwords
+*.keystore
+*.jks
+signing.keystore
+android/
+*.apk
+*.aab
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node (only if the future Vite/TS version lands here)
+node_modules/
+dist/
+.env

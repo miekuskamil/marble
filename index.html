@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marbles">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Marbles</title>
+<style>
+  /* ============================================================
+     MARBLES — offline screen-time spending ledger
+     Physical marbles are earned offline. This app spends them.
+     One marble = a block of game time (grown-ups set the rate).
+     No network. No accounts. All state in localStorage.
+     ============================================================ */
+
+  :root{
+    --bg:#0a0c10;            /* near-black */
+    --bg2:#14171d;           /* raised charcoal */
+    --panel:#1a1e26;         /* card surface */
+    --panel-hi:#2c323d;      /* top highlight edge of a raised card */
+    --panel-line:#333a45;    /* border */
+    --ink:#f6f8fb;           /* bright silver-white text */
+    --ink-dim:#c2c9d4;       /* secondary */
+    --ink-faint:#8b95a3;     /* tertiary */
+    --glass-a:#ffe08a;       /* marble/accent — the one warm colour */
+    --glass-b:#f5a623;
+    --glass-c:#b8560f;
+    --glass-d:#6b2d08;
+    --silver-a:#e9edf3;      /* metallic highlights */
+    --silver-b:#aab3c0;
+    --good:#4fd39a;
+    --warn:#ffb454;
+    --bad:#ff7a7a;
+    --focus:#9db4d6;
+    --r:22px;
+    /* reusable depth: raised card gets a light top edge + real drop shadow */
+    --lift: 0 1px 0 rgba(255,255,255,.06) inset,
+            0 -1px 0 rgba(0,0,0,.5) inset,
+            0 8px 20px rgba(0,0,0,.55),
+            0 2px 4px rgba(0,0,0,.4);
+    font-size:16px;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(130% 90% at 50% -12%, #1b1f27 0%, var(--bg) 58%) fixed,
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    overscroll-behavior-y:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  .display{font-family:Georgia,"Times New Roman",serif}
+
+  .app{
+    max-width:520px;margin:0 auto;
+    padding:calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 18px);
+    display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+  }
+
+  /* ---------- top bar ---------- */
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .dot{
+    width:26px;height:26px;border-radius:50%;
+    background:radial-gradient(circle at 36% 30%, var(--glass-a), var(--glass-b) 42%, var(--glass-c) 78%, var(--glass-d));
+    box-shadow:inset 2px 2px 4px rgba(255,255,255,.4), 0 2px 6px rgba(0,0,0,.4);
+  }
+  .brand h1{font-size:1.05rem;letter-spacing:.02em;margin:0;font-weight:600}
+  .cog{
+    background:none;border:0;color:var(--ink-faint);font-size:1.5rem;
+    width:44px;height:44px;border-radius:12px;cursor:pointer;line-height:1;
+  }
+  .cog:active{background:var(--panel)}
+
+  /* ---------- marble count hero ---------- */
+  .hero{
+    background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel) 22%,var(--bg2) 100%);
+    border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:var(--r);
+    box-shadow:var(--lift);
+    padding:22px 20px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden;
+  }
+  .hero .label{color:var(--ink-dim);font-size:.82rem;letter-spacing:.14em;text-transform:uppercase}
+  .marble-row{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:16px 0 6px;min-height:46px;align-items:center}
+  .marble{
+    width:40px;height:40px;border-radius:50%;flex:0 0 auto;
+    background:radial-gradient(circle at 36% 30%, var(--glass-a), var(--glass-b) 40%, var(--glass-c) 76%, var(--glass-d));
+    box-shadow:inset 3px 3px 7px rgba(255,255,255,.55), inset -3px -4px 7px rgba(0,0,0,.5),
+               0 4px 10px rgba(0,0,0,.6), 0 0 0 1px rgba(255,224,138,.15), 0 0 14px rgba(245,166,35,.25);
+    position:relative;animation:pop .32s cubic-bezier(.2,1.4,.4,1) backwards;
+  }
+  .marble::after{content:"";position:absolute;top:7px;left:9px;width:12px;height:8px;border-radius:50%;background:rgba(255,255,255,.65);transform:rotate(-18deg)}
+  @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .marble-none{color:var(--ink-faint);font-size:.95rem}
+  .hero .count{font-size:1.15rem;color:var(--ink);margin-top:4px}
+  .hero .count b{color:var(--glass-a)}
+
+  /* ---------- primary action ---------- */
+  .spend-btn{
+    width:100%;border:0;border-radius:var(--r);cursor:pointer;
+    padding:20px;font-size:1.18rem;font-weight:700;color:#2a1500;
+    background:linear-gradient(160deg,var(--glass-a),var(--glass-b) 62%,var(--glass-c));
+    box-shadow:0 6px 18px rgba(245,166,35,.32), inset 0 1px 0 rgba(255,255,255,.5);
+    letter-spacing:.01em;margin-bottom:12px;transition:transform .08s;
+  }
+  .spend-btn:active{transform:scale(.975)}
+  .spend-btn:disabled{
+    background:linear-gradient(180deg,var(--panel-hi),var(--panel));color:var(--ink-dim);
+    box-shadow:0 2px 8px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.05) inset;cursor:default;
+  }
+  .spend-btn small{display:block;font-weight:600;font-size:.8rem;opacity:.8;margin-top:3px}
+
+  /* ---------- timer ---------- */
+  .timer-card{
+    background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel) 22%,var(--bg2) 100%);
+    border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:var(--r);
+    box-shadow:var(--lift);
+    padding:24px 20px;text-align:center;margin-bottom:12px;
+  }
+  .timer-card.hidden{display:none}
+  .ring-wrap{position:relative;width:210px;height:210px;margin:4px auto 10px}
+  .ring-wrap svg{transform:rotate(-90deg)}
+  .ring-bg{fill:none;stroke:#2a3038;stroke-width:14}
+  .ring-fg{fill:none;stroke:var(--glass-b);stroke-width:14;stroke-linecap:round;transition:stroke-dashoffset 1s linear, stroke .4s}
+  .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring-center .time{font-size:2.9rem;line-height:1;color:var(--ink);letter-spacing:.01em}
+  .ring-center .sub{font-size:.8rem;color:var(--ink-dim);margin-top:6px;text-transform:uppercase;letter-spacing:.12em}
+  .timer-controls{display:flex;gap:10px;justify-content:center}
+  .tbtn{
+    flex:1;max-width:150px;border:1px solid var(--panel-line);border-top-color:#3c434f;
+    background:linear-gradient(180deg,var(--panel-hi),var(--panel));
+    color:var(--ink);border-radius:14px;padding:13px;font-size:.98rem;font-weight:600;cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  .tbtn:active{background:var(--bg2)}
+  .tbtn.stop{border-color:#6a3030;color:#ffb0b0}
+  .timer-card.warn .ring-fg{stroke:var(--warn)}
+  .timer-card.over .ring-fg{stroke:var(--bad)}
+  .timer-card.over .time{color:var(--bad)}
+  .over-note{color:var(--bad);font-size:.85rem;margin-top:2px;min-height:1.1em}
+
+  /* ---------- bank ---------- */
+  .bank{
+    background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel) 22%,var(--bg2) 100%);
+    border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:var(--r);
+    box-shadow:var(--lift);
+    padding:18px 20px;margin-bottom:12px;
+  }
+  .bank h2{font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 12px}
+  .goal{margin-bottom:14px}
+  .goal:last-child{margin-bottom:0}
+  .goal-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .goal-name{font-size:1rem;color:var(--ink)}
+  .goal-count{font-size:.85rem;color:var(--ink-dim)}
+  .goal-count.done{color:var(--good);font-weight:700}
+  .bar{height:12px;background:var(--bg);border-radius:8px;overflow:hidden;border:1px solid var(--panel-line)}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--glass-c),var(--glass-b),var(--glass-a));border-radius:8px;transition:width .5s cubic-bezier(.2,.8,.3,1)}
+  .bar-fill.done{background:linear-gradient(90deg,#2e8b6a,var(--good))}
+  .goal-claim{
+    margin-top:8px;width:100%;border:0;border-radius:12px;padding:11px;font-weight:700;cursor:pointer;
+    background:linear-gradient(160deg,var(--good),#2e8b6a);color:#042417;font-size:.95rem;
+    animation:glow 1.6s ease-in-out infinite;
+  }
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(90,209,154,.5)}50%{box-shadow:0 0 0 8px rgba(90,209,154,0)}}
+  .bank-empty{color:var(--ink-faint);font-size:.92rem;text-align:center;padding:6px 0}
+
+  .spacer{flex:1}
+
+  /* ---------- history ---------- */
+  .history{margin-top:6px}
+  .history summary{
+    color:var(--ink-faint);font-size:.85rem;cursor:pointer;list-style:none;
+    padding:10px 0;text-align:center;
+  }
+  .history summary::-webkit-details-marker{display:none}
+  .hist-list{max-height:210px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .hist-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 4px;border-top:1px solid var(--panel-line);font-size:.9rem;
+  }
+  .hist-row .what{color:var(--ink-dim)}
+  .hist-row .when{color:var(--ink-faint);font-size:.78rem}
+  .hist-empty{color:var(--ink-faint);text-align:center;padding:14px;font-size:.88rem}
+
+  /* ---------- modal / sheet ---------- */
+  .sheet-bg{
+    position:fixed;inset:0;background:rgba(8,5,18,.72);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;z-index:50;
+    animation:fade .2s;
+  }
+  .sheet-bg.center{align-items:center}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{
+    width:100%;max-width:520px;background:var(--bg2);
+    border:1px solid var(--panel-line);border-bottom:0;
+    border-radius:26px 26px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);
+    animation:rise .26s cubic-bezier(.2,.9,.3,1);max-height:92vh;overflow-y:auto;
+  }
+  .sheet.card{border-radius:26px;border-bottom:1px solid var(--panel-line);margin:0 16px}
+  @keyframes rise{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .sheet h2{margin:0 0 4px;font-size:1.3rem}
+  .sheet .sub{color:var(--ink-dim);font-size:.9rem;margin:0 0 18px}
+  .sheet-close{position:absolute}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:.82rem;color:var(--ink-dim);margin-bottom:7px;letter-spacing:.04em}
+  .field input, .field select{
+    width:100%;background:var(--bg);border:1px solid var(--panel-line);color:var(--ink);
+    border-radius:12px;padding:14px;font-size:1.05rem;font-family:inherit;
+  }
+  .field input:focus,.field select:focus{outline:2px solid var(--focus);outline-offset:1px}
+  .field .hint{font-size:.78rem;color:var(--ink-faint);margin-top:6px}
+  .row2{display:flex;gap:10px}
+  .row2>*{flex:1}
+  .btn{
+    width:100%;border:0;border-radius:14px;padding:15px;font-size:1.02rem;font-weight:700;cursor:pointer;
+    background:linear-gradient(160deg,var(--glass-a),var(--glass-b) 62%,var(--glass-c));color:#2a1500;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.ghost{background:linear-gradient(180deg,var(--panel-hi),var(--panel));color:var(--ink);border:1px solid var(--panel-line);border-top-color:#3c434f;box-shadow:0 2px 6px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset}
+  .btn.danger{background:none;border:1px solid #5a2a2a;color:#ffb0b0}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn-stack>*{margin-bottom:10px}
+  .btn-stack>*:last-child{margin-bottom:0}
+
+  /* spend stepper */
+  .act-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .act-chip{
+    flex:1 1 auto;min-width:96px;border:1px solid var(--panel-line);border-top-color:#3c434f;
+    background:linear-gradient(180deg,var(--panel-hi),var(--panel));color:var(--ink);
+    border-radius:14px;padding:12px 10px;cursor:pointer;text-align:center;font-weight:600;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  .act-chip small{display:block;font-weight:600;font-size:.74rem;color:var(--ink-faint);margin-top:2px}
+  .act-chip.on{
+    background:linear-gradient(160deg,var(--glass-a),var(--glass-b) 70%);color:#2a1500;border-top-color:var(--glass-a);
+  }
+  .act-chip.on small{color:#5a3200}
+  .stepper{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    background:var(--bg);border:1px solid var(--panel-line);border-radius:18px;padding:14px 16px;margin-bottom:14px;
+  }
+  .step-btn{
+    width:60px;height:60px;flex:0 0 auto;border-radius:16px;border:1px solid var(--panel-line);border-top-color:#3c434f;
+    background:linear-gradient(180deg,var(--panel-hi),var(--panel));color:var(--ink);
+    font-size:2rem;font-weight:700;line-height:1;cursor:pointer;font-family:Georgia,serif;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  .step-btn:active{background:var(--bg2)}
+  .step-btn:disabled{opacity:.35;cursor:default}
+  .step-mid{text-align:center;flex:1}
+  .step-mins{font-family:Georgia,serif;font-size:2.5rem;line-height:1;color:var(--ink)}
+  .step-mins b{color:var(--glass-a)}
+  .step-unit{font-size:.8rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.12em;margin-top:4px}
+  .cost-line{
+    text-align:center;font-size:1.05rem;margin:0 0 16px;color:var(--ink-dim);
+  }
+  .cost-line b{color:var(--glass-a)}
+  .cost-marbles{display:inline-flex;gap:4px;vertical-align:middle;margin-left:6px}
+  .cost-marbles i{
+    width:18px;height:18px;border-radius:50%;display:inline-block;
+    background:radial-gradient(circle at 36% 30%, var(--glass-a), var(--glass-b) 42%, var(--glass-c) 78%, var(--glass-d));
+    box-shadow:inset 1px 1px 2px rgba(255,255,255,.5);
+  }
+  .cost-warn{color:var(--bad)}
+
+  /* pin pad */
+  .pin-dots{display:flex;gap:14px;justify-content:center;margin:14px 0 20px}
+  .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink-faint)}
+  .pin-dot.on{background:var(--glass-b);border-color:var(--glass-b)}
+  .pin-err{color:var(--bad);text-align:center;font-size:.88rem;min-height:1.2em;margin-bottom:8px}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .key{
+    background:var(--panel);border:1px solid var(--panel-line);color:var(--ink);
+    border-radius:14px;padding:18px;font-size:1.4rem;font-weight:600;cursor:pointer;font-family:Georgia,serif;
+  }
+  .key:active{background:var(--bg)}
+  .key.blank{background:none;border:0;cursor:default}
+  .key.wide{grid-column:span 1}
+
+  /* rate row editor */
+  .rate-list{margin-bottom:10px}
+  .rate-item{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .rate-item input{flex:1}
+  .rate-item .mins{width:96px;flex:0 0 auto}
+  .rate-item .del{background:none;border:0;color:var(--bad);font-size:1.3rem;width:40px;cursor:pointer}
+  .goal-item{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .goal-item input.gname{flex:1}
+  .goal-item input.gcost{width:80px;flex:0 0 auto}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:var(--good);color:#04241a;padding:13px 20px;border-radius:14px;font-weight:700;
+    z-index:80;animation:toastin .3s, fade .3s;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:.95rem;
+  }
+  @keyframes toastin{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+  .splash{
+    position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 40%, #3a2a6a, var(--bg) 70%);animation:fade .3s;
+  }
+  .splash .big-marble{
+    width:130px;height:130px;border-radius:50%;
+    background:radial-gradient(circle at 36% 30%, var(--glass-a), var(--glass-b) 40%, var(--glass-c) 76%, var(--glass-d));
+    box-shadow:inset 5px 5px 12px rgba(255,255,255,.5), 0 10px 34px rgba(245,166,35,.5);
+    animation:bounce .7s cubic-bezier(.2,1.5,.4,1);
+  }
+  @keyframes bounce{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .splash h2{font-size:2rem;margin:22px 0 6px;color:var(--glass-a)}
+  .splash p{color:var(--ink-dim);margin:0}
+
+  /* ---------- bottom tab bar ---------- */
+  .app{padding-bottom:calc(env(safe-area-inset-bottom) + 92px)}
+  .tabbar{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(env(safe-area-inset-bottom) + 14px);
+    width:calc(100% - 32px);max-width:456px;
+    display:flex;gap:4px;padding:6px;z-index:40;
+    background:rgba(26,30,38,.9);backdrop-filter:blur(16px);
+    border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:20px;
+    box-shadow:0 12px 34px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  .tab{
+    flex:1;border:0;background:none;color:var(--ink-faint);cursor:pointer;
+    border-radius:15px;padding:9px 4px 7px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;font-size:.68rem;font-weight:600;letter-spacing:.02em;
+    transition:color .2s, background .2s;
+  }
+  .tab .ic{width:24px;height:24px;display:block}
+  .tab .ic svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:#2a1500;background:linear-gradient(160deg,var(--glass-a),var(--glass-b) 70%)}
+  .tab.on .ic svg{stroke:#2a1500}
+  .tab .badge{
+    position:absolute;transform:translate(14px,-4px);min-width:16px;height:16px;
+    background:var(--good);color:#04241a;border-radius:8px;font-size:.62rem;
+    font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;
+  }
+
+  /* ---------- usage chart ---------- */
+  .chart-card{
+    background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel) 22%,var(--bg2) 100%);
+    border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:var(--r);
+    box-shadow:var(--lift);
+    padding:18px 16px 14px;margin-bottom:14px;
+  }
+  .chart-head{display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 12px}
+  .chart-head h3{margin:0;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .chart-head .big{font-size:1.05rem;color:var(--glass-a);font-weight:700}
+  .chart-svg{width:100%;display:block;overflow:visible}
+  .chart-dot{fill:var(--glass-b);stroke:var(--bg2);stroke-width:2;cursor:pointer;transition:r .15s}
+  .chart-dot.active{fill:var(--glass-a);r:6}
+  .chart-line{fill:none;stroke:var(--glass-b);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .chart-area{opacity:.16}
+  .chart-xlabel{fill:var(--ink-faint);font-size:9px;text-anchor:middle}
+  .chart-tip{
+    fill:var(--ink);font-size:11px;font-weight:700;text-anchor:middle;
+  }
+  .chart-tipbg{fill:var(--bg);stroke:var(--panel-line);rx:6}
+  .stat-row{display:flex;gap:10px;margin-bottom:14px}
+  .stat{
+    flex:1;background:linear-gradient(180deg,var(--panel-hi),var(--panel) 40%);border:1px solid var(--panel-line);border-top-color:var(--panel-hi);border-radius:16px;
+    box-shadow:0 4px 12px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.05) inset;
+    padding:14px 12px;text-align:center;
+  }
+  .stat .n{font-size:1.5rem;font-weight:700;color:var(--ink)}
+  .stat .n.green{color:var(--good)} .stat .n.amber{color:var(--glass-a)}
+  .stat .k{font-size:.72rem;color:var(--ink-dim);margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+  .view-title{font-size:1.4rem;margin:2px 4px 16px;font-family:Georgia,serif}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001s !important}
+    .bar-fill,.ring-fg{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+/* ============================================================================
+   MARBLES  —  vanilla single-file app, no build, no network.
+   Architecture (mirrors Neuron's static-first pattern):
+     - Store        : owns state + localStorage persistence (single source of truth)
+     - Timer        : owns the countdown clock (wall-clock based, survives reload)
+     - render()     : pure-ish view built from state; re-runs on any change
+     - actions      : small functions that mutate Store then re-render
+   State shape is versioned so future changes can migrate cleanly.
+   ========================================================================== */
+
+/* ----------------------------- Store -------------------------------------- */
+const Store = (() => {
+  const KEY = 'marbles.v1';
+  const DEFAULTS = {
+    v: 1,
+    marbles: 0,              // marbles available to spend right now
+    pin: '1234',            // grown-ups PIN (changeable)
+    minutesPerMarble: 20,    // default rate if no named activity chosen
+    soundOn: true,           // timer warning/end chimes + haptics
+    activities: [            // named things a marble can buy
+      { id: 'game', name: 'Games', minutes: 20 },
+      { id: 'tv',   name: 'TV',    minutes: 30 },
+    ],
+    goals: [                 // savings goals: bank marbles toward these
+      { id: 'movie', name: 'Movie night', cost: 5, saved: 0 },
+    ],
+    history: [],             // {id, type, text, ts}
+    // live timer persisted so a reload/lock doesn't lose it:
+    session: null,           // {label, endTs, totalSec, running, pausedLeft}
+  };
+
+  let state = load();
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return structuredClone(DEFAULTS);
+      const parsed = JSON.parse(raw);
+      return migrate(parsed);
+    }catch(e){
+      console.warn('load failed, using defaults', e);
+      return structuredClone(DEFAULTS);
+    }
+  }
+  function migrate(s){
+    // shallow-merge missing top-level keys so old saves keep working
+    const base = structuredClone(DEFAULTS);
+    const merged = Object.assign(base, s, { v: 1 });
+    // repair pre-chart history: back-fill minutes/delta from the text so the
+    // usage timeline populates from existing data instead of showing zeros.
+    if(Array.isArray(merged.history)){
+      merged.history = merged.history.map(h => {
+        const fixed = { ...h };
+        if(h.type === 'spend' && (h.minutes == null)){
+          const m = /(\d+)\s*min/i.exec(h.text || '');
+          fixed.minutes = m ? parseInt(m[1], 10) : 0;
+          if(fixed.delta == null) fixed.delta = -1;
+        }
+        if(h.type === 'earn' && (h.delta == null)){
+          const m = /Added\s+(\d+)/i.exec(h.text || '');
+          fixed.delta = m ? parseInt(m[1], 10) : 0;
+        }
+        if(h.type === 'save' && (h.delta == null)) fixed.delta = -1;
+        return fixed;
+      });
+    }
+    return merged;
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch(e){ console.warn('save failed', e); }
+  }
+
+  return {
+    get: () => state,
+    set: (patch) => { Object.assign(state, patch); save(); },
+    update: (fn) => { fn(state); save(); },
+    reset: () => { state = structuredClone(DEFAULTS); save(); },
+    load: () => { state = load(); return state; },
+    _defaults: DEFAULTS,
+  };
+})();
+
+/* ----------------------------- helpers ------------------------------------ */
+const $ = (sel, root=document) => root.querySelector(sel);
+const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!=null)n.textContent=txt; return n; };
+const uid = () => Math.random().toString(36).slice(2,9);
+const clamp = (n,lo,hi) => Math.max(lo, Math.min(hi, n));
+
+function fmtClock(sec){
+  const neg = sec < 0;
+  const s = Math.abs(sec);
+  const m = Math.floor(s/60), ss = s%60;
+  return (neg?'+':'') + m + ':' + String(ss).padStart(2,'0');
+}
+function fmtWhen(ts){
+  const d = new Date(ts), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const t = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  if(sameDay) return 'Today ' + t;
+  const y = new Date(now); y.setDate(now.getDate()-1);
+  if(d.toDateString() === y.toDateString()) return 'Yesterday ' + t;
+  return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + t;
+}
+function logEvent(type, text, meta={}){
+  Store.update(s => {
+    s.history.unshift({ id: uid(), type, text, ts: Date.now(), ...meta });
+    if(s.history.length > 200) s.history.length = 200;
+  });
+}
+
+/* ----------------------------- Sound -------------------------------------- */
+/* Synthesized tones via Web Audio — no audio files, keeps the single-file rule.
+   Must be unlocked by a user gesture (the spend tap) before it can play. */
+const Sound = (() => {
+  let ctx = null;
+  function on(){ return Store.get().soundOn !== false; }
+  function unlock(){
+    if(ctx) return;
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) ctx = new AC();
+      if(ctx && ctx.state === 'suspended') ctx.resume();
+    }catch(e){ ctx = null; }
+  }
+  function tone(freq, start, dur, gain=0.15, type='sine'){
+    if(!ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(ctx.destination);
+    const t0 = ctx.currentTime + start;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
+
+  return {
+    unlock,
+    warn(){                       // gentle single note, "getting close"
+      if(!on()) return; unlock();
+      tone(660, 0, 0.25, 0.12);
+      buzz(60);
+    },
+    lastCall(){                   // two quick notes at 10s
+      if(!on()) return; unlock();
+      tone(660, 0, 0.16, 0.12);
+      tone(880, 0.18, 0.2, 0.12);
+      buzz([50,60,50]);
+    },
+    end(){                        // rising three-note chime, "time's up"
+      if(!on()) return; unlock();
+      tone(523, 0,    0.22, 0.16);   // C
+      tone(659, 0.20, 0.22, 0.16);   // E
+      tone(784, 0.40, 0.42, 0.18);   // G
+      buzz([120,80,120,80,200]);
+    },
+    ping(){                       // tiny confirm on spend/bank
+      if(!on()) return; unlock();
+      tone(880, 0, 0.12, 0.10);
+    }
+  };
+})();
+
+/* ----------------------------- Timer -------------------------------------- */
+/* Wall-clock based so it stays correct across reloads and screen locks.
+   Ticks once a second only to update the display. */
+const Timer = (() => {
+  let handle = null;
+  let lastLeft = null;   // previous tick's secondsLeft, to detect threshold crossings
+  function tick(){
+    const left = secondsLeft();
+    if(left != null && lastLeft != null && Store.get().session && Store.get().session.running){
+      // fire each cue once, only when crossing downward through the threshold
+      if(lastLeft > 60 && left <= 60) Sound.warn();
+      if(lastLeft > 10 && left <= 10) Sound.lastCall();
+      if(lastLeft > 0  && left <= 0)  Sound.end();
+    }
+    lastLeft = left;
+    render();
+  }
+  function ensureLoop(){
+    const s = Store.get();
+    const active = s.session && s.session.running;
+    if(active && !handle){ handle = setInterval(tick, 1000); }
+    if(!active && handle){ clearInterval(handle); handle = null; lastLeft = null; }
+  }
+  function start(label, totalSec){
+    Store.update(s => {
+      s.session = { label, totalSec, endTs: Date.now() + totalSec*1000, running:true, pausedLeft:null };
+    });
+    lastLeft = totalSec;   // seed so we don't false-fire on the first tick
+    ensureLoop();
+  }
+  function secondsLeft(){
+    const s = Store.get().session;
+    if(!s) return null;
+    if(!s.running) return s.pausedLeft;
+    return Math.round((s.endTs - Date.now())/1000);
+  }
+  function pause(){
+    Store.update(s => {
+      if(!s.session || !s.session.running) return;
+      s.session.pausedLeft = Math.round((s.session.endTs - Date.now())/1000);
+      s.session.running = false;
+    });
+    ensureLoop();
+  }
+  function resume(){
+    Store.update(s => {
+      if(!s.session || s.session.running) return;
+      s.session.endTs = Date.now() + s.session.pausedLeft*1000;
+      s.session.running = true;
+      s.session.pausedLeft = null;
+    });
+    ensureLoop();
+  }
+  function stop(){
+    Store.update(s => { s.session = null; });
+    ensureLoop();
+  }
+  return { start, pause, resume, stop, secondsLeft, ensureLoop };
+})();
+
+/* ----------------------------- actions ------------------------------------ */
+function spendMarble(activity, minutes, marbleCost){
+  const s = Store.get();
+  // Back-compat: called with just an activity => spend 1 marble at its base rate.
+  if(minutes == null){
+    minutes = activity ? activity.minutes : s.minutesPerMarble;
+    marbleCost = 1;
+  }
+  const label = activity ? activity.name : 'Game time';
+  minutes = Math.max(10, Math.round(minutes/10)*10);          // enforce 10-min steps
+  marbleCost = Math.max(1, Math.min(marbleCost, s.marbles));  // can't overspend
+  if(s.marbles < marbleCost || s.marbles <= 0) return;
+  Store.update(st => { st.marbles -= marbleCost; });
+  logEvent('spend', `Spent ${marbleCost} marble${marbleCost>1?'s':''} → ${minutes} min of ${label}`, { minutes, delta:-marbleCost });
+  Sound.unlock(); Sound.ping();
+  Timer.start(label, minutes*60);
+  closeSheet();
+  render();
+}
+
+function addToBank(goalId){
+  const s = Store.get();
+  if(s.marbles <= 0) return;
+  const g = s.goals.find(x=>x.id===goalId);
+  if(!g || g.saved >= g.cost) return;
+  Store.update(st => {
+    const gg = st.goals.find(x=>x.id===goalId);
+    st.marbles -= 1; gg.saved += 1;
+  });
+  logEvent('save', `Banked 1 marble → ${g.name} (${g.saved+1}/${g.cost})`, { delta:-1 });
+  closeSheet();
+  render();
+}
+
+function claimGoal(goalId){
+  const g = Store.get().goals.find(x=>x.id===goalId);
+  if(!g || g.saved < g.cost) return;
+  Store.update(st => {
+    const gg = st.goals.find(x=>x.id===goalId);
+    gg.saved = 0;
+  });
+  logEvent('claim', `Claimed reward: ${g.name}`);
+  showSplash('Reward unlocked!', g.name);
+  render();
+}
+
+/* grown-ups: add marbles she earned offline */
+function grantMarbles(n){
+  n = clamp(parseInt(n,10)||0, 0, 999);
+  if(n<=0) return;
+  Store.update(s => { s.marbles += n; });
+  logEvent('earn', `Added ${n} marble${n>1?'s':''}`, { delta:n });
+  render();
+}
+function removeMarbles(n){
+  n = clamp(parseInt(n,10)||0, 0, 999);
+  Store.update(s => { s.marbles = Math.max(0, s.marbles - n); });
+  logEvent('adjust', `Removed ${n} marble${n>1?'s':''}`);
+  render();
+}
+
+/* ----------------------------- views -------------------------------------- */
+let TAB = 'home';   // 'home' | 'bank' | 'usage'  (grown-ups opens as a sheet)
+function render(){
+  Timer.ensureLoop();
+  const s = Store.get();
+  const app = $('#app');
+  app.innerHTML = '';
+
+  /* top bar (Home shows brand+cog; other tabs show a title) */
+  if(TAB==='home'){
+    const top = el('div','top');
+    const brand = el('div','brand');
+    brand.append(el('span','dot'), Object.assign(el('h1','display'),{textContent:'Marbles'}));
+    const cog = el('button','cog'); cog.innerHTML='&#9881;'; cog.setAttribute('aria-label','Grown-ups'); cog.onclick=openGrownups;
+    top.append(brand, cog);
+    app.append(top);
+  }
+
+  if(TAB==='home')    renderHome(app, s);
+  if(TAB==='bank')    renderBankView(app, s);
+  if(TAB==='usage')   renderUsageView(app, s);
+
+  app.append(el('div','spacer'));
+  app.append(renderTabbar(s));
+}
+
+function renderHome(app, s){
+  /* hero: marble count */
+  const hero = el('div','hero');
+  hero.append(el('div','label','You have'));
+  const row = el('div','marble-row');
+  if(s.marbles===0){ row.append(el('div','marble-none','No marbles yet — earn one at home!')); }
+  else{
+    const shown = Math.min(s.marbles, 12);
+    for(let i=0;i<shown;i++){ const m=el('div','marble'); m.style.animationDelay=(i*0.03)+'s'; row.append(m); }
+  }
+  hero.append(row);
+  const c = el('div','count'); c.innerHTML = `<b>${s.marbles}</b> marble${s.marbles===1?'':'s'} to spend`;
+  hero.append(c);
+  app.append(hero);
+
+  /* primary spend button */
+  const hasSession = !!s.session;
+  const spend = el('button','spend-btn');
+  spend.disabled = s.marbles<=0 || hasSession;
+  if(hasSession){ spend.innerHTML = 'Time is running'; }
+  else if(s.marbles<=0){ spend.innerHTML = 'No marbles to spend'; }
+  else { spend.innerHTML = 'Spend a marble<small>Start your game time</small>'; }
+  spend.onclick = openSpend;
+  app.append(spend);
+
+  app.append(renderTimer());
+
+  /* quick peek at first goal, tap to open Bank tab */
+  if(s.goals.length){
+    app.append(renderBank(true));
+  }
+}
+
+function renderBankView(app, s){
+  app.append(Object.assign(el('h2','view-title'),{textContent:'Savings bank'}));
+  app.append(renderBank(false));
+}
+
+function renderTabbar(s){
+  const bar = el('div','tabbar');
+  const readyGoals = s.goals.filter(g=>g.saved>=g.cost).length;
+  const icons = {
+    home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+    bank:'<svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M4 10v9h16v-9"/><path d="M9 19v-5h6v5"/></svg>',
+    usage:'<svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 15l4-5 3 3 4-6"/></svg>',
+    grown:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>'
+  };
+  const tabs = [
+    ['home','Home'], ['bank','Bank'], ['usage','Usage'], ['grown','Grown-ups']
+  ];
+  tabs.forEach(([id,label])=>{
+    const b = el('button','tab'+(TAB===id?' on':''));
+    const ic = el('span','ic'); ic.innerHTML=icons[id]; b.append(ic);
+    if(id==='bank' && readyGoals>0){ const bd=el('span','badge',String(readyGoals)); b.append(bd); }
+    b.append(el('span',null,label));
+    b.onclick = ()=>{
+      if(id==='grown'){ openGrownups(); return; }   // grown-ups is PIN-gated, stays a sheet
+      if(id==='usage'){ promptPin(()=>{ TAB='usage'; render(); }); return; } // usage is grown-ups data
+      TAB=id; render();
+    };
+    bar.append(b);
+  });
+  return bar;
+}
+
+function renderTimer(){
+  const s = Store.get();
+  const card = el('div','timer-card' + (s.session?'':' hidden'));
+  if(!s.session) return card;
+
+  const left = Timer.secondsLeft();
+  const total = s.session.totalSec;
+  const over = left < 0;
+  const warn = !over && left <= 60;
+  if(over) card.classList.add('over');
+  else if(warn) card.classList.add('warn');
+
+  // ring
+  const R=90, C=2*Math.PI*R;
+  const frac = clamp(left/total, 0, 1);
+  const wrap = el('div','ring-wrap');
+  wrap.innerHTML = `<svg width="210" height="210" viewBox="0 0 210 210">
+    <circle class="ring-bg" cx="105" cy="105" r="${R}"/>
+    <circle class="ring-fg" cx="105" cy="105" r="${R}"
+      stroke-dasharray="${C}" stroke-dashoffset="${C*(1-frac)}"/>
+  </svg>`;
+  const center = el('div','ring-center');
+  center.append(Object.assign(el('div','time display'),{textContent:fmtClock(left)}));
+  center.append(el('div','sub', over ? 'Over time' : s.session.label));
+  wrap.append(center);
+  card.append(wrap);
+
+  if(over){
+    card.append(Object.assign(el('div','over-note'),{textContent:'Time is up — tap Done'}));
+  }
+
+  const ctrls = el('div','timer-controls');
+  if(s.session.running){
+    const p = el('button','tbtn','Pause'); p.onclick=()=>{Timer.pause();render();};
+    ctrls.append(p);
+  } else {
+    const r = el('button','tbtn','Resume'); r.onclick=()=>{Timer.resume();render();};
+    ctrls.append(r);
+  }
+  const stop = el('button','tbtn stop','Done'); stop.onclick=()=>{Timer.stop();render();};
+  ctrls.append(stop);
+  card.append(ctrls);
+  return card;
+}
+
+function renderBank(compact){
+  const s = Store.get();
+  const bank = el('div','bank');
+  if(compact){
+    const h = el('h2',null,'Savings bank →');
+    h.style.cursor='pointer'; h.onclick=()=>{ TAB='bank'; render(); };
+    bank.append(h);
+  } else {
+    bank.append(el('h2',null,'Move spare marbles into a goal'));
+  }
+  if(!s.goals.length){
+    bank.append(el('div','bank-empty','No goals yet. A grown-up can add one.'));
+    return bank;
+  }
+  const list = compact ? s.goals.slice(0,1) : s.goals;
+  list.forEach(g => {
+    const done = g.saved >= g.cost;
+    const wrap = el('div','goal');
+    const t = el('div','goal-top');
+    t.append(el('div','goal-name', g.name));
+    const cc = el('div','goal-count'+(done?' done':''), done ? 'Ready!' : `${g.saved} / ${g.cost}`);
+    t.append(cc);
+    wrap.append(t);
+    const bar = el('div','bar');
+    const fill = el('div','bar-fill'+(done?' done':''));
+    fill.style.width = clamp(g.saved/g.cost*100,0,100)+'%';
+    bar.append(fill); wrap.append(bar);
+    if(done){
+      const claim = el('button','goal-claim',`Claim ${g.name}`);
+      claim.onclick=()=>claimGoal(g.id);
+      wrap.append(claim);
+    } else if(!compact){
+      const add = el('button','goal-claim');
+      add.style.animation='none';
+      add.style.background='linear-gradient(160deg,var(--glass-a),var(--glass-b) 70%)';
+      add.style.color='#2a1500';
+      add.textContent = s.marbles>0 ? `Add a marble to ${g.name}` : 'No marbles to add';
+      add.disabled = s.marbles<=0;
+      if(s.marbles<=0){ add.style.opacity='.5'; }
+      add.onclick=()=>{ addToBank(g.id); };
+      wrap.append(add);
+    }
+    bank.append(wrap);
+  });
+  if(compact && s.goals.length>1){
+    const more = el('div','bank-empty', `+${s.goals.length-1} more goal${s.goals.length-1>1?'s':''}`);
+    more.style.cursor='pointer'; more.onclick=()=>{ TAB='bank'; render(); };
+    bank.append(more);
+  }
+  return bank;
+}
+
+function renderHistory(){
+  const s = Store.get();
+  const d = el('details','history');
+  const sum = el('summary',null,'Recent activity');
+  d.append(sum);
+  const list = el('div','hist-list');
+  if(!s.history.length){
+    list.append(el('div','hist-empty','Nothing yet.'));
+  } else {
+    s.history.slice(0,40).forEach(h => {
+      const r = el('div','hist-row');
+      r.append(el('div','what', h.text));
+      r.append(el('div','when', fmtWhen(h.ts)));
+      list.append(r);
+    });
+  }
+  d.append(list);
+  return d;
+}
+
+/* ----------------------------- usage view --------------------------------- */
+/* Buckets history into per-day totals and draws an SVG line chart.
+   Grown-ups data: descriptive only, never a score or target. */
+function dailyBuckets(history, days){
+  const now = new Date();
+  const out = [];
+  for(let i=days-1;i>=0;i--){
+    const d = new Date(now); d.setDate(now.getDate()-i); d.setHours(0,0,0,0);
+    out.push({ date:d, minutes:0, earned:0, spent:0 });
+  }
+  const startTs = out[0].date.getTime();
+  history.forEach(h => {
+    if(h.ts < startTs) return;
+    const d = new Date(h.ts); d.setHours(0,0,0,0);
+    const idx = out.findIndex(b => b.date.getTime()===d.getTime());
+    if(idx<0) return;
+    if(h.type==='spend'){ out[idx].minutes += (h.minutes||0); out[idx].spent += 1; }
+    if(h.type==='earn'){  out[idx].earned += (h.delta||0); }
+  });
+  return out;
+}
+
+let ACTIVE_POINT = null; // index of tapped chart dot
+
+function renderUsageView(app, s){
+  app.append(Object.assign(el('h2','view-title'),{textContent:'Usage'}));
+
+  const days = 14;
+  const buckets = dailyBuckets(s.history, days);
+  const totalMin = buckets.reduce((a,b)=>a+b.minutes,0);
+  const activeDays = buckets.filter(b=>b.minutes>0).length;
+  const avg = activeDays ? Math.round(totalMin/activeDays) : 0;
+  const earned = buckets.reduce((a,b)=>a+b.earned,0);
+  const spent = buckets.reduce((a,b)=>a+b.spent,0);
+
+  // summary stats
+  const stats = el('div','stat-row');
+  const mk = (n,k,cls)=>{ const w=el('div','stat'); w.append(Object.assign(el('div','n'+(cls?' '+cls:'')),{textContent:n})); w.append(el('div','k',k)); return w; };
+  stats.append(mk(totalMin, 'min · 14 days'));
+  stats.append(mk(avg, 'avg / play day', 'amber'));
+  stats.append(mk(`${earned}/${spent}`, 'earned/spent', 'green'));
+  app.append(stats);
+
+  // chart
+  const card = el('div','chart-card');
+  const head = el('div','chart-head');
+  head.append(Object.assign(el('h3'),{textContent:'Minutes played per day'}));
+  const peek = ACTIVE_POINT!=null ? buckets[ACTIVE_POINT] : null;
+  head.append(Object.assign(el('div','big'),{
+    textContent: peek ? `${peek.minutes} min` : `${totalMin} total`
+  }));
+  card.append(head);
+  card.append(buildChart(buckets));
+  app.append(card);
+
+  // earned vs spent, small paired bars
+  card.append(document.createComment(''));
+
+  app.append(renderHistory());
+}
+
+function buildChart(buckets){
+  const W=340, H=150, padL=6, padR=6, padT=14, padB=22;
+  const n = buckets.length;
+  const maxV = Math.max(20, ...buckets.map(b=>b.minutes));
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const x = i => padL + (n===1?innerW/2:(i/(n-1))*innerW);
+  const y = v => padT + innerH - (v/maxV)*innerH;
+
+  const pts = buckets.map((b,i)=>[x(i), y(b.minutes)]);
+  const linePath = pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L ${pts[n-1][0].toFixed(1)} ${padT+innerH} L ${pts[0][0].toFixed(1)} ${padT+innerH} Z`;
+
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('class','chart-svg');
+
+  // gridline at max and mid
+  [maxV, Math.round(maxV/2)].forEach(gv=>{
+    const gl=document.createElementNS(ns,'line');
+    gl.setAttribute('x1',padL); gl.setAttribute('x2',W-padR);
+    gl.setAttribute('y1',y(gv)); gl.setAttribute('y2',y(gv));
+    gl.setAttribute('stroke','var(--panel-line)'); gl.setAttribute('stroke-width','1');
+    gl.setAttribute('stroke-dasharray','2 4');
+    svg.appendChild(gl);
+  });
+
+  // area fill (gradient)
+  const defs=document.createElementNS(ns,'defs');
+  defs.innerHTML=`<linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="var(--glass-b)"/>
+    <stop offset="100%" stop-color="var(--glass-b)" stop-opacity="0"/></linearGradient>`;
+  svg.appendChild(defs);
+  const area=document.createElementNS(ns,'path');
+  area.setAttribute('d',areaPath); area.setAttribute('fill','url(#area)'); area.setAttribute('class','chart-area');
+  svg.appendChild(area);
+
+  // line
+  const line=document.createElementNS(ns,'path');
+  line.setAttribute('d',linePath); line.setAttribute('class','chart-line');
+  // draw-in animation
+  const len = line.getTotalLength ? 0 : 0;
+  svg.appendChild(line);
+  try{
+    const L = line.getTotalLength();
+    line.style.strokeDasharray=L; line.style.strokeDashoffset=L;
+    line.animate([{strokeDashoffset:L},{strokeDashoffset:0}],{duration:650,easing:'ease-out',fill:'forwards'});
+  }catch(e){}
+
+  // x labels every ~4 days + last
+  buckets.forEach((b,i)=>{
+    if(i%4===0 || i===n-1){
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',x(i)); lbl.setAttribute('y',H-6); lbl.setAttribute('class','chart-xlabel');
+      lbl.textContent = b.date.toLocaleDateString([], {day:'numeric',month:'numeric'});
+      svg.appendChild(lbl);
+    }
+  });
+
+  // dots (tappable), and tooltip for active
+  buckets.forEach((b,i)=>{
+    const dot=document.createElementNS(ns,'circle');
+    dot.setAttribute('cx',x(i)); dot.setAttribute('cy',y(b.minutes));
+    dot.setAttribute('r', ACTIVE_POINT===i?6:4);
+    dot.setAttribute('class','chart-dot'+(ACTIVE_POINT===i?' active':''));
+    dot.style.cursor='pointer';
+    const hit=()=>{ ACTIVE_POINT = ACTIVE_POINT===i?null:i; render(); };
+    dot.addEventListener('click',hit);
+    dot.addEventListener('touchstart',(e)=>{e.preventDefault();hit();},{passive:false});
+    svg.appendChild(dot);
+  });
+
+  // tooltip
+  if(ACTIVE_POINT!=null){
+    const b=buckets[ACTIVE_POINT];
+    const tx=clamp(x(ACTIVE_POINT), 30, W-30);
+    const ty=Math.max(y(b.minutes)-14, 14);
+    const label = `${b.minutes} min · ${b.date.toLocaleDateString([], {weekday:'short'})}`;
+    const bw = label.length*6.2 + 14;
+    const rect=document.createElementNS(ns,'rect');
+    rect.setAttribute('x',tx-bw/2); rect.setAttribute('y',ty-16);
+    rect.setAttribute('width',bw); rect.setAttribute('height',20);
+    rect.setAttribute('rx',6); rect.setAttribute('class','chart-tipbg');
+    svg.appendChild(rect);
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',tx); t.setAttribute('y',ty-2); t.setAttribute('class','chart-tip');
+    t.textContent=label;
+    svg.appendChild(t);
+  }
+
+  return svg;
+}
+
+/* ----------------------------- sheets/modals ------------------------------ */
+let sheetEl = null;
+function openSheet(node, {center=false}={}){
+  closeSheet();
+  const bg = el('div','sheet-bg'+(center?' center':''));
+  bg.onclick = (e)=>{ if(e.target===bg) closeSheet(); };
+  const sheet = el('div','sheet'+(center?' card':''));
+  sheet.append(node);
+  bg.append(sheet);
+  document.body.append(bg);
+  sheetEl = bg;
+  return sheet;
+}
+function closeSheet(){ if(sheetEl){ sheetEl.remove(); sheetEl=null; } }
+
+function openSpend(){
+  const s = Store.get();
+  const acts = s.activities.length ? s.activities : [{id:'game',name:'Game time',minutes:20}];
+
+  // local sheet state
+  let actIdx = 0;
+  let minutes = acts[0].minutes;                 // start at one marble's worth
+  const STEP = 10;
+
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'Spend marbles'}));
+  wrap.append(Object.assign(el('p','sub'),{textContent:'Pick what to play, then set the time.'}));
+
+  // activity chips
+  const chips = el('div','act-chips');
+  acts.forEach((a,i)=>{
+    const c = el('div','act-chip'+(i===0?' on':''));
+    c.innerHTML = `${a.name}<small>${a.minutes} min / marble</small>`;
+    c.onclick=()=>{
+      actIdx=i;
+      // snap minutes to this activity's per-marble rate as a sensible default
+      minutes = acts[i].minutes;
+      [...chips.children].forEach((ch,ci)=>ch.classList.toggle('on',ci===i));
+      paint();
+    };
+    chips.append(c);
+  });
+  wrap.append(chips);
+
+  // stepper
+  const stepper = el('div','stepper');
+  const minus = el('button','step-btn','−');
+  const mid = el('div','step-mid');
+  const minsEl = el('div','step-mins'); const unitEl = el('div','step-unit','minutes');
+  mid.append(minsEl, unitEl);
+  const plus = el('button','step-btn','+');
+  stepper.append(minus, mid, plus);
+  wrap.append(stepper);
+
+  // cost line
+  const cost = el('p','cost-line');
+  wrap.append(cost);
+
+  // confirm / cancel
+  const confirm = el('button','btn');
+  const cancel = el('button','btn ghost','Cancel'); cancel.style.marginTop='10px'; cancel.onclick=closeSheet;
+  wrap.append(confirm, cancel);
+
+  function marbleCost(){ return Math.max(1, Math.ceil(minutes / acts[actIdx].minutes)); }
+  function paint(){
+    minsEl.innerHTML = `<b>${minutes}</b>`;
+    const mc = marbleCost();
+    const enough = mc <= s.marbles;
+    // cost line with little marble dots
+    const dots = `<span class="cost-marbles">${'<i></i>'.repeat(Math.min(mc,6))}</span>`;
+    cost.innerHTML = `Costs <b>${mc}</b> marble${mc>1?'s':''}${dots}`
+      + (enough ? '' : `<div class="cost-warn" style="margin-top:6px;font-size:.9rem">You only have ${s.marbles}</div>`);
+    minus.disabled = minutes <= STEP;
+    // can't raise beyond what marbles allow: max minutes = marbles * rate
+    const maxMin = s.marbles * acts[actIdx].minutes;
+    plus.disabled = minutes >= maxMin;
+    confirm.disabled = !enough || s.marbles<=0;
+    confirm.innerHTML = enough
+      ? `Start ${minutes} min <small style="font-weight:600;opacity:.8">· ${mc} marble${mc>1?'s':''}</small>`
+      : 'Not enough marbles';
+    confirm.style.opacity = confirm.disabled ? '.5' : '1';
+  }
+  minus.onclick=()=>{ minutes=Math.max(STEP, minutes-STEP); paint(); };
+  plus.onclick =()=>{ const maxMin=s.marbles*acts[actIdx].minutes; minutes=Math.min(maxMin, minutes+STEP); paint(); };
+  confirm.onclick=()=>{ spendMarble(acts[actIdx], minutes, marbleCost()); };
+
+  paint();
+  openSheet(wrap);
+}
+
+/* ----------------------------- grown-ups (PIN) ---------------------------- */
+function openGrownups(){
+  promptPin(() => openGrownupsPanel());
+}
+
+function promptPin(onOk){
+  const real = Store.get().pin;
+  let entry = '';
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'Grown-ups only'}));
+  wrap.append(Object.assign(el('p','sub'),{textContent:'Enter the PIN.'}));
+  const dots = el('div','pin-dots');
+  const err = el('div','pin-err');
+  function drawDots(){
+    dots.innerHTML='';
+    for(let i=0;i<4;i++){ const dd=el('div','pin-dot'+(i<entry.length?' on':'')); dots.append(dd); }
+  }
+  drawDots();
+  wrap.append(dots, err);
+  const pad = el('div','keypad');
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  keys.forEach(k => {
+    if(k===''){ pad.append(el('div','key blank')); return; }
+    const b = el('button','key',k);
+    b.onclick=()=>{
+      if(k==='⌫'){ entry=entry.slice(0,-1); err.textContent=''; drawDots(); return; }
+      if(entry.length>=4) return;
+      entry+=k; drawDots();
+      if(entry.length===4){
+        if(entry===real){ closeSheet(); onOk(); }
+        else { err.textContent='Wrong PIN'; entry=''; setTimeout(drawDots,180); }
+      }
+    };
+    pad.append(b);
+  });
+  wrap.append(pad);
+  const cancel = el('button','btn ghost','Cancel'); cancel.style.marginTop='16px'; cancel.onclick=closeSheet;
+  wrap.append(cancel);
+  openSheet(wrap);
+}
+
+function openGrownupsPanel(){
+  const s = Store.get();
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'Grown-ups'}));
+  wrap.append(Object.assign(el('p','sub'),{textContent:'Marbles are earned at home. Add them here.'}));
+
+  // add / remove marbles
+  const addField = el('div','field');
+  addField.innerHTML = `<label>Add marbles she earned</label>`;
+  const rowA = el('div','row2');
+  const numIn = Object.assign(el('input'),{type:'number',min:'1',max:'99',value:'1',inputMode:'numeric'});
+  const addBtn = el('button','btn','Add'); addBtn.onclick=()=>{ grantMarbles(numIn.value); openGrownupsPanel(); };
+  rowA.append(numIn, addBtn);
+  addField.append(rowA);
+  const rmBtn = el('button','btn ghost','Remove one marble');
+  rmBtn.style.marginTop='10px';
+  rmBtn.onclick=()=>{ removeMarbles(1); openGrownupsPanel(); };
+  addField.append(rmBtn);
+  wrap.append(addField);
+
+  const nav = el('div','btn-stack');
+  const rates = el('button','btn ghost','Edit activities & rates'); rates.onclick=openRates;
+  const goals = el('button','btn ghost','Edit savings goals'); goals.onclick=openGoals;
+  const settings = el('button','btn ghost','PIN, backup & reset'); settings.onclick=openSettings;
+  nav.append(rates, goals, settings);
+  wrap.append(nav);
+
+  const done = el('button','btn','Done'); done.style.marginTop='16px'; done.onclick=closeSheet;
+  wrap.append(done);
+  openSheet(wrap);
+}
+
+function openRates(){
+  const s = Store.get();
+  const draft = structuredClone(s.activities);
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'Activities & rates'}));
+  wrap.append(Object.assign(el('p','sub'),{textContent:'What one marble buys.'}));
+  const list = el('div','rate-list');
+  function draw(){
+    list.innerHTML='';
+    draft.forEach((a,i) => {
+      const item = el('div','rate-item');
+      const name = Object.assign(el('input'),{value:a.name,placeholder:'Name'});
+      name.oninput=()=>draft[i].name=name.value;
+      const mins = Object.assign(el('input','mins'),{type:'number',min:'1',value:a.minutes,inputMode:'numeric'});
+      mins.oninput=()=>draft[i].minutes=clamp(parseInt(mins.value)||1,1,600);
+      const del = el('button','del','×'); del.onclick=()=>{ draft.splice(i,1); draw(); };
+      item.append(name, mins, del);
+      list.append(item);
+    });
+  }
+  draw();
+  wrap.append(list);
+  const addRow = el('button','btn ghost','+ Add activity');
+  addRow.onclick=()=>{ draft.push({id:uid(),name:'New',minutes:20}); draw(); };
+  wrap.append(addRow);
+  const save = el('button','btn','Save'); save.style.marginTop='14px';
+  save.onclick=()=>{
+    const clean = draft.filter(a=>a.name.trim()).map(a=>({id:a.id||uid(),name:a.name.trim(),minutes:clamp(parseInt(a.minutes)||1,1,600)}));
+    Store.update(st=>{ st.activities = clean.length?clean:[{id:'game',name:'Games',minutes:20}]; });
+    render(); openGrownupsPanel();
+  };
+  wrap.append(save);
+  const back = el('button','btn ghost','Back'); back.style.marginTop='10px'; back.onclick=openGrownupsPanel;
+  wrap.append(back);
+  openSheet(wrap);
+}
+
+function openGoals(){
+  const s = Store.get();
+  const draft = structuredClone(s.goals);
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'Savings goals'}));
+  wrap.append(Object.assign(el('p','sub'),{textContent:'Marbles she banks toward a bigger reward.'}));
+  const list = el('div','rate-list');
+  function draw(){
+    list.innerHTML='';
+    draft.forEach((g,i)=>{
+      const item = el('div','goal-item');
+      const name = Object.assign(el('input','gname'),{value:g.name,placeholder:'Reward'});
+      name.oninput=()=>draft[i].name=name.value;
+      const cost = Object.assign(el('input','gcost'),{type:'number',min:'1',value:g.cost,inputMode:'numeric'});
+      cost.oninput=()=>draft[i].cost=clamp(parseInt(cost.value)||1,1,99);
+      const del = el('button','del','×'); del.onclick=()=>{ draft.splice(i,1); draw(); };
+      item.append(name, cost, del);
+      list.append(item);
+    });
+  }
+  draw();
+  wrap.append(list);
+  const add = el('button','btn ghost','+ Add goal');
+  add.onclick=()=>{ draft.push({id:uid(),name:'New reward',cost:5,saved:0}); draw(); };
+  wrap.append(add);
+  const save = el('button','btn','Save'); save.style.marginTop='14px';
+  save.onclick=()=>{
+    const clean = draft.filter(g=>g.name.trim()).map(g=>({
+      id:g.id||uid(), name:g.name.trim(), cost:clamp(parseInt(g.cost)||1,1,99),
+      saved: clamp(g.saved||0, 0, clamp(parseInt(g.cost)||1,1,99))
+    }));
+    Store.update(st=>{ st.goals = clean; });
+    render(); openGrownupsPanel();
+  };
+  wrap.append(save);
+  const back = el('button','btn ghost','Back'); back.style.marginTop='10px'; back.onclick=openGrownupsPanel;
+  wrap.append(back);
+  openSheet(wrap);
+}
+
+function openSettings(){
+  const s = Store.get();
+  const wrap = el('div');
+  wrap.append(Object.assign(el('h2'),{textContent:'PIN, backup & reset'}));
+
+  // change PIN
+  const pinField = el('div','field');
+  pinField.innerHTML = `<label>Change PIN (4 digits)</label>`;
+  const pinIn = Object.assign(el('input'),{type:'text',inputMode:'numeric',maxLength:4,value:s.pin,pattern:'[0-9]*'});
+  pinField.append(pinIn);
+  pinField.append(Object.assign(el('div','hint'),{textContent:'Used to open this grown-ups area.'}));
+  wrap.append(pinField);
+  const savePin = el('button','btn','Save PIN');
+  savePin.onclick=()=>{
+    const v=(pinIn.value||'').replace(/\D/g,'').slice(0,4);
+    if(v.length!==4){ toast('PIN must be 4 digits'); return; }
+    Store.update(st=>{st.pin=v;}); toast('PIN saved');
+  };
+  wrap.append(savePin);
+
+  // sound toggle
+  const snd = el('div','field'); snd.style.marginTop='22px';
+  const sndRow = el('div');
+  sndRow.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px';
+  const sndLabel = el('div');
+  sndLabel.innerHTML = `<div style="font-size:1rem;color:var(--ink)">Timer sounds</div>
+    <div class="hint" style="margin-top:2px">Warning near the end, chime + buzz when time is up.</div>`;
+  const toggle = el('button','btn ghost');
+  toggle.style.cssText='width:74px;flex:0 0 auto;padding:11px;font-weight:700';
+  const paint=()=>{
+    const onNow = Store.get().soundOn !== false;
+    toggle.textContent = onNow ? 'On' : 'Off';
+    toggle.style.background = onNow ? 'linear-gradient(160deg,var(--glass-a),var(--glass-b) 70%)' : 'var(--panel)';
+    toggle.style.color = onNow ? '#2a1500' : 'var(--ink-faint)';
+  };
+  paint();
+  toggle.onclick=()=>{
+    Store.update(st=>{ st.soundOn = !(st.soundOn !== false); });
+    paint();
+    if(Store.get().soundOn){ Sound.unlock(); Sound.warn(); }  // preview
+  };
+  sndRow.append(sndLabel, toggle);
+  snd.append(sndRow);
+  wrap.append(snd);
+
+  // backup / restore
+  const bk = el('div','field'); bk.style.marginTop='22px';
+  bk.innerHTML = `<label>Backup</label>`;
+  const exp = el('button','btn ghost','Copy backup code');
+  exp.onclick=()=>{
+    const data = btoa(unescape(encodeURIComponent(JSON.stringify(Store.get()))));
+    navigator.clipboard?.writeText(data).then(()=>toast('Backup copied')).catch(()=>{
+      prompt('Copy this backup code:', data);
+    });
+  };
+  bk.append(exp);
+  const imp = el('button','btn ghost','Restore from code'); imp.style.marginTop='10px';
+  imp.onclick=()=>{
+    const code = prompt('Paste backup code:');
+    if(!code) return;
+    try{
+      const obj = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+      Store.set(obj); Store.load(); toast('Restored'); render(); closeSheet();
+    }catch(e){ toast('Bad code'); }
+  };
+  bk.append(imp);
+  bk.append(Object.assign(el('div','hint'),{textContent:'Save the code somewhere safe. Clearing the browser erases marbles otherwise.'}));
+  wrap.append(bk);
+
+  // reset
+  const reset = el('button','btn danger','Reset everything'); reset.style.marginTop='22px';
+  reset.onclick=()=>{
+    if(confirm('Erase all marbles, goals and history?')){ Store.reset(); render(); closeSheet(); toast('Reset done'); }
+  };
+  wrap.append(reset);
+  const back = el('button','btn ghost','Back'); back.style.marginTop='10px'; back.onclick=openGrownupsPanel;
+  wrap.append(back);
+  openSheet(wrap);
+}
+
+/* ----------------------------- misc UI ------------------------------------ */
+function toast(msg){
+  const t = el('div','toast',msg);
+  document.body.append(t);
+  setTimeout(()=>t.remove(), 1800);
+}
+function showSplash(title, sub){
+  const sp = el('div','splash');
+  sp.append(el('div','big-marble'));
+  sp.append(Object.assign(el('h2','display'),{textContent:title}));
+  sp.append(Object.assign(el('p'),{textContent:sub}));
+  document.body.append(sp);
+  sp.onclick=()=>sp.remove();
+  setTimeout(()=>{ if(sp.parentNode) sp.remove(); }, 2600);
+}
+
+/* expose a tiny API for tests (see marbles.test) */
+window.__marbles = { Store, Timer, Sound, spendMarble, addToBank, claimGoal, grantMarbles, fmtClock, fmtWhen };
+
+/* ----------------------------- boot --------------------------------------- */
+Store.load();
+render();
+window.addEventListener('storage', () => { Store.load(); render(); });
+document.addEventListener('visibilitychange', () => { if(!document.hidden){ Store.load(); render(); } });
+
+/* ----------------------------- PWA / install ------------------------------ */
+/* Keeps the single-file rule: manifest and service worker are generated as
+   Blob URLs at runtime instead of separate files. When the page is served
+   from a real URL (e.g. Netlify) this makes it installable and fully offline,
+   and upgrades storage to "persistent" so Android won't evict her marbles. */
+(function setupPWA(){
+  // 1. Ask for persistent storage so localStorage isn't evicted under pressure.
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      navigator.storage.persisted().then(p => { if(!p) navigator.storage.persist(); });
+    }
+  }catch(e){}
+
+  // 2. Manifest: prefer the static file (manifest.webmanifest) that the host
+  //    serves — that's what PWABuilder and stores read. Only inject a runtime
+  //    Blob manifest as a fallback when opened as a lone file with no static one.
+  try{
+    if(!document.querySelector('link[rel="manifest"]')){
+      const icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='112' fill='%230a0c10'/%3E%3Cdefs%3E%3CradialGradient id='m' cx='38%25' cy='32%25' r='72%25'%3E%3Cstop offset='0%25' stop-color='%23ffe08a'/%3E%3Cstop offset='40%25' stop-color='%23f5a623'/%3E%3Cstop offset='78%25' stop-color='%23b8560f'/%3E%3Cstop offset='100%25' stop-color='%236b2d08'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='256' cy='262' r='150' fill='url(%23m)'/%3E%3Cellipse cx='205' cy='205' rx='46' ry='32' fill='%23fff' opacity='0.6'/%3E%3C/svg%3E";
+      const manifest = {
+        name:"Marbles", short_name:"Marbles",
+        description:"Turn earned marbles into screen time.",
+        start_url:".", scope:".", display:"standalone", orientation:"portrait",
+        background_color:"#0a0c10", theme_color:"#0a0c10",
+        icons:[{ src:icon, sizes:"512x512", type:"image/svg+xml", purpose:"any maskable" }]
+      };
+      const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+      const link = document.createElement('link');
+      link.rel = 'manifest'; link.href = URL.createObjectURL(mBlob);
+      document.head.appendChild(link);
+    }
+  }catch(e){}
+
+  // 3. Offline page-load: register a sibling service worker *if one exists*.
+  //    Browsers block service workers from blob: URLs, so we can't inline it and
+  //    stay strictly single-file. The app still installs and works offline via the
+  //    normal HTTP cache + localStorage; a real sw.js just guarantees offline load.
+  //    If you drop an "sw.js" next to this file on your host, it gets used automatically.
+  try{
+    if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+      navigator.serviceWorker.register('sw.js').catch(()=>{ /* fine: no sw.js present */ });
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
