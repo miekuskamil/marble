@@ -122,6 +122,7 @@ Quick facts:
 | `screenshots/` | The pictures used in this README. |
 | `DOCS.md` | The full technical guide. |
 | `docs/overview.html` | A one-page project overview. |
+| `docs/overview.pdf` | The same overview as a PDF. |
 
 ---
 
