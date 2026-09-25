@@ -94,7 +94,8 @@ Just don't press "clear browsing data" — that erases them. A grown-up can make
 ## 🛠️ For grown-ups & developers
 
 The nerdy details — how it's built, the data model, testing, deploying, and
-making the `.apk` — are in **[DOCS.md](DOCS.md)**.
+making the `.apk` — are in **[DOCS.md](DOCS.md)**. For a one-page tour, open
+**[`docs/overview.html`](docs/overview.html)**.
 
 Quick facts:
 
@@ -120,6 +121,7 @@ Quick facts:
 | `_headers` | A setting for the Netlify website host. |
 | `screenshots/` | The pictures used in this README. |
 | `DOCS.md` | The full technical guide. |
+| `docs/overview.html` | A one-page project overview. |
 
 ---
 

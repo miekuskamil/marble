@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marbles Project Overview</title>
+<meta name="description" content="Offline screen-time bank and timer: stack, architecture, build phases and test strategy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cinzel+Decorative:wght@700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#0C0F16;--bg-panel:#13182A;--bg-card:#1A2035;
+  --border:#252E45;--border-sub:#1E2840;
+  --text:#E4D9C8;--muted:#7A8BA0;--dim:#394558;
+  --ember:#FF5A32;--ember-dim:rgba(255,90,50,.12);
+  --gold:#C8A050;--gold-dim:rgba(200,160,80,.10);
+  --teal:#3DD6B8;--teal-dim:rgba(61,214,184,.10);
+  --violet:#8B78E6;--violet-dim:rgba(139,120,230,.12);
+  --rose:#E0607A;--rose-dim:rgba(224,96,122,.12);
+  --sky:#4DA6FF;--sky-dim:rgba(77,166,255,.12);
+  --serif:'Cinzel',Georgia,serif;--deco:'Cinzel Decorative','Cinzel',Georgia,serif;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#F0EBE0;--bg-panel:#E8E0CC;--bg-card:#DED6C0;
+    --border:#C0B090;--border-sub:#CFC3A6;--text:#1A1510;--muted:#5A4E3A;--dim:#8A7E6A;
+    --ember:#C83A14;--ember-dim:rgba(200,58,20,.09);
+    --gold:#886010;--gold-dim:rgba(136,96,16,.09);
+    --teal:#1A7A68;--teal-dim:rgba(26,122,104,.08);
+    --violet:#5040B0;--violet-dim:rgba(80,64,176,.09);
+    --rose:#A03050;--rose-dim:rgba(160,48,80,.09);
+    --sky:#2060C0;--sky-dim:rgba(32,96,192,.09);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F0EBE0;--bg-panel:#E8E0CC;--bg-card:#DED6C0;
+  --border:#C0B090;--border-sub:#CFC3A6;--text:#1A1510;--muted:#5A4E3A;--dim:#8A7E6A;
+  --ember:#C83A14;--ember-dim:rgba(200,58,20,.09);
+  --gold:#886010;--gold-dim:rgba(136,96,16,.09);
+  --teal:#1A7A68;--teal-dim:rgba(26,122,104,.08);
+  --violet:#5040B0;--violet-dim:rgba(80,64,176,.09);
+  --rose:#A03050;--rose-dim:rgba(160,48,80,.09);
+  --sky:#2060C0;--sky-dim:rgba(32,96,192,.09);
+  color-scheme:light;
+}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font:400 15px/1.6 var(--sans);overflow-x:hidden}
+a{color:var(--ember)}
+code{font-family:var(--mono);font-size:.85em;background:var(--bg-card);border:1px solid var(--border-sub);border-radius:4px;padding:0 .3em}
+.wrap{max-width:920px;margin:0 auto;padding:0 16px}
+section{padding:56px 0 8px}
+.eyebrow{font:600 .72rem/1 var(--serif);letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+h2{font:600 1.5rem/1.25 var(--serif);margin-bottom:8px}
+.lede{color:var(--muted);max-width:640px;margin-bottom:24px}
+
+/* hero */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--border);padding:88px 0 64px}
+.hero::before{content:"";position:absolute;inset:-40% -20% auto auto;width:720px;height:720px;
+  background:radial-gradient(circle,var(--ember-dim) 0%,transparent 62%);pointer-events:none}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,var(--border-sub) 3px 4px);mask-image:linear-gradient(transparent,#000 40%,transparent)}
+.hero .wrap{position:relative;z-index:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+.chip{font:500 .65rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--bg-panel)}
+.chip.e{color:var(--ember);background:var(--ember-dim);border-color:transparent}
+.chip.t{color:var(--teal);background:var(--teal-dim);border-color:transparent}
+.chip.g{color:var(--gold);background:var(--gold-dim);border-color:transparent}
+h1{font:700 clamp(2.4rem,8vw,4.4rem)/1.05 var(--deco);letter-spacing:.01em;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--ember)}
+.tagline{font-weight:300;font-size:1.12rem;color:var(--muted);max-width:580px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:40px}
+.stat{background:var(--bg-panel);padding:16px 18px}
+.stat b{display:block;font:500 1.5rem/1.1 var(--mono);color:var(--text)}
+.stat span{font-size:.8rem;color:var(--muted)}
+
+/* stack */
+.stack{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.cell{background:var(--bg-panel);padding:16px 18px}
+.cell .l{font:400 .65rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.cell .n{font-weight:500;margin-bottom:4px}
+.cell .d{font-size:.84rem;color:var(--muted);line-height:1.5}
+
+/* architecture */
+figure{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:18px}
+.svgbox{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.svgbox svg{display:block;width:100%;min-width:640px;height:auto}
+figcaption{font-size:.82rem;color:var(--muted);margin-top:12px;border-top:1px solid var(--border-sub);padding-top:12px}
+svg .box{fill:var(--bg-card);stroke:var(--border)}
+svg .box.k{stroke:var(--ember);fill:var(--ember-dim)}
+svg .box.s{stroke:var(--teal)}
+svg .box.b{stroke:var(--sky);stroke-dasharray:4 3;fill:var(--sky-dim)}
+svg .band{fill:none;stroke:var(--border-sub);stroke-dasharray:2 4}
+svg .t1{fill:var(--text);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:500}
+svg .t2{fill:var(--muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8px}
+svg .ey{fill:var(--gold);font-family:'Cinzel',Georgia,serif;font-size:8px;letter-spacing:2px}
+svg .ln{stroke:var(--muted);stroke-width:1.2;fill:none}
+svg .ln.e{stroke:var(--ember)}
+svg .ln.t{stroke:var(--teal)}
+svg .ln.s{stroke:var(--sky);stroke-dasharray:4 3}
+svg .mk{fill:var(--muted)} svg .mk.e{fill:var(--ember)} svg .mk.t{fill:var(--teal)} svg .mk.s{fill:var(--sky)}
+
+/* phases */
+.phases{display:grid;gap:10px}
+.pc{--c:var(--ember);--cd:var(--ember-dim);background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;transition:border-color .2s}
+.pc:hover,.pc[open]{border-color:color-mix(in srgb,var(--c) 40%,transparent)}
+.p1{--c:var(--ember);--cd:var(--ember-dim)}.p2{--c:var(--gold);--cd:var(--gold-dim)}.p3{--c:var(--teal);--cd:var(--teal-dim)}
+.p4{--c:var(--violet);--cd:var(--violet-dim)}.p5{--c:var(--rose);--cd:var(--rose-dim)}.p6{--c:var(--sky);--cd:var(--sky-dim)}
+.ph{display:flex;align-items:center;gap:16px;padding:16px 18px;cursor:pointer;list-style:none}
+.ph::-webkit-details-marker{display:none}
+.ph:focus-visible{outline:2px solid var(--c);outline-offset:2px;border-radius:10px}
+.pn{font:500 1.9rem/1 var(--mono);color:var(--c);opacity:.45;min-width:2.2ch}
+.pt{flex:1;min-width:0}
+.pt b{display:block;font:600 1.02rem/1.3 var(--serif)}
+.pt span{font-size:.84rem;color:var(--muted)}
+.tag{font:500 .62rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:6px 9px;border-radius:999px;background:var(--cd);color:var(--c);white-space:nowrap}
+.chev{color:var(--dim);transition:transform .2s;font-family:var(--mono)}
+.pc[open] .chev{transform:rotate(90deg);color:var(--c)}
+.steps{list-style:none;padding:4px 18px 18px 18px;display:grid;gap:12px;border-top:1px solid var(--border-sub);margin:0 18px;padding-left:0;padding-right:0;padding-top:16px}
+.steps li{display:grid;grid-template-columns:2.6em 1fr;gap:6px}
+.steps .sn{font:400 .75rem/1.6 var(--mono);color:var(--dim)}
+.steps b{font-weight:600}
+.steps p{color:var(--muted);font-size:.88rem}
+
+/* tests */
+.tests{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tc{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.tc h3{font:600 .72rem/1 var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:6px}
+.tc .meta{font:400 .7rem/1.4 var(--mono);color:var(--dim);margin-bottom:12px}
+.tc ul{list-style:none;display:grid;gap:7px}
+.tc li{position:relative;padding-left:1.3em;font-size:.88rem;color:var(--muted)}
+.tc li::before{content:"→";position:absolute;left:0;color:var(--ember);font-family:var(--mono)}
+.tc li b{color:var(--text);font-weight:500}
+
+/* files */
+.files{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.files div{display:grid;grid-template-columns:minmax(0,210px) 1fr;gap:16px;padding:10px 18px;border-top:1px solid var(--border-sub);background:var(--bg-panel);font-size:.88rem}
+.files div:first-child{border-top:0}
+.files code{background:none;border:0;padding:0;color:var(--gold);word-break:break-all}
+.files span{color:var(--muted)}
+
+footer{margin-top:64px;padding:28px 0 40px;border-top:1px solid var(--border);text-align:center;font:400 .72rem/1.6 var(--mono);color:var(--dim)}
+
+@media (max-width:640px){
+  .hero{padding:56px 0 40px}
+  section{padding-top:44px}
+  .tests{grid-template-columns:1fr}
+  .ph{gap:12px;padding:14px}
+  .tag{display:none}
+  .files div{grid-template-columns:1fr;gap:2px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="chips">
+      <span class="chip e">Screen-time bank</span>
+      <span class="chip g">One HTML file</span>
+      <span class="chip t">Offline PWA · APK</span>
+      <span class="chip">Vanilla JS · no deps</span>
+      <span class="chip">pytest + Playwright</span>
+    </div>
+    <h1>The <em>Marbles</em></h1>
+    <p class="tagline">Kids earn real marbles for jobs around the house. This app is the piggy bank and the timer: marbles buy game time in 10-minute steps, spare ones are saved for bigger rewards, and grown-ups manage it all behind a PIN.</p>
+    <div class="stats">
+      <div class="stat"><b>1</b><span>file: the whole app is <code>index.html</code></span></div>
+      <div class="stat"><b>0</b><span>runtime libraries, build steps or network calls</span></div>
+      <div class="stat"><b>5 min</b><span>pause budget per session, then it restarts itself</span></div>
+      <div class="stat"><b>30+</b><span>behaviour tests driving the real page in Chromium</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p class="eyebrow">The stack</p>
+    <h2>Plain web platform, on purpose</h2>
+    <p class="lede">Everything a family phone already has: HTML, CSS, JavaScript and a few browser APIs. The chart and the marbles are hand-drawn SVG; the sounds are synthesised.</p>
+    <div class="stack">
+      <div class="cell"><div class="l">App</div><div class="n">index.html</div><div class="d">HTML, CSS and JS in one file, split internally into single-job modules.</div></div>
+      <div class="cell"><div class="l">State</div><div class="n">localStorage</div><div class="d">One JSON object under <code>marbles.v1</code>, schema <code>v: 2</code>, with migration.</div></div>
+      <div class="cell"><div class="l">Timer</div><div class="n">Wall clock</div><div class="d"><code>endTs</code>-based, so it survives reloads and screen locks.</div></div>
+      <div class="cell"><div class="l">Sound</div><div class="n">Web Audio</div><div class="d">Synthesised tones plus vibrate; no audio files to load.</div></div>
+      <div class="cell"><div class="l">Screen</div><div class="n">Wake Lock</div><div class="d">Keeps the screen on while a timer runs so the alarm can ring.</div></div>
+      <div class="cell"><div class="l">Dialogs</div><div class="n">&lt;dialog&gt;</div><div class="d"><code>showModal()</code> for focus trap, Esc and back-to-close.</div></div>
+      <div class="cell"><div class="l">Offline</div><div class="n">sw.js</div><div class="d">Network-first pages with a cached fallback; updates land on the next launch.</div></div>
+      <div class="cell"><div class="l">Android</div><div class="n">PWABuilder TWA</div><div class="d">Signed <code>.apk</code> that loads the hosted site; no rebuild for app changes.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Architecture</p>
+    <h2>One file, clear lanes</h2>
+    <p class="lede">A tap calls an action, the action changes the store, and <code>render()</code> rebuilds the page from state. The timer is the one exception: it updates only the clock, ring and labels in place, once a second.</p>
+    <figure>
+      <div class="svgbox">
+        <svg viewBox="0 0 760 330" role="img" aria-labelledby="ma-t">
+          <title id="ma-t">Marbles architecture: action pipeline, timer subsystems, and distribution</title>
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="ahe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk e" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="aht" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk t" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk s" d="M0 0L10 5L0 10z"/></marker>
+          </defs>
+
+          <text class="ey" x="16" y="22">ACTION PIPELINE</text>
+          <rect class="box" x="16" y="34" width="132" height="52" rx="6"/>
+          <text class="t1" x="82" y="57" text-anchor="middle">TAP</text><text class="t2" x="82" y="72" text-anchor="middle">child or grown-up</text>
+          <rect class="box k" x="164" y="34" width="132" height="52" rx="6"/>
+          <text class="t1" x="230" y="57" text-anchor="middle">ACTIONS</text><text class="t2" x="230" y="72" text-anchor="middle">spend · bank · refund</text>
+          <rect class="box k" x="312" y="34" width="132" height="52" rx="6"/>
+          <text class="t1" x="378" y="57" text-anchor="middle">STORE</text><text class="t2" x="378" y="72" text-anchor="middle">state · migrate · save</text>
+          <rect class="box k" x="460" y="34" width="132" height="52" rx="6"/>
+          <text class="t1" x="526" y="57" text-anchor="middle">RENDER()</text><text class="t2" x="526" y="72" text-anchor="middle">views from state</text>
+          <rect class="box" x="608" y="34" width="136" height="52" rx="6"/>
+          <text class="t1" x="676" y="57" text-anchor="middle">DIALOGS</text><text class="t2" x="676" y="72" text-anchor="middle">native showModal</text>
+          <path class="ln" d="M148 60H162" marker-end="url(#ah)"/>
+          <path class="ln e" d="M296 60H310" marker-end="url(#ahe)"/>
+          <path class="ln e" d="M444 60H458" marker-end="url(#ahe)"/>
+          <path class="ln" d="M592 60H606" marker-end="url(#ah)"/>
+          <path class="ln" d="M676 34V20H230V32" marker-end="url(#ah)"/>
+
+          <text class="ey" x="16" y="136">TIMER SUBSYSTEMS</text>
+          <rect class="box s" x="16" y="148" width="170" height="52" rx="6"/>
+          <text class="t1" x="101" y="171" text-anchor="middle">TIMER</text><text class="t2" x="101" y="186" text-anchor="middle">endTs · pause pot · cues</text>
+          <rect class="box s" x="206" y="148" width="150" height="52" rx="6"/>
+          <text class="t1" x="281" y="171" text-anchor="middle">SOUND</text><text class="t2" x="281" y="186" text-anchor="middle">Web Audio + vibrate</text>
+          <rect class="box s" x="416" y="148" width="150" height="52" rx="6"/>
+          <text class="t1" x="491" y="171" text-anchor="middle">TIMERVIEW</text><text class="t2" x="491" y="186" text-anchor="middle">in-place, every 1 s</text>
+          <rect class="box s" x="586" y="148" width="158" height="52" rx="6"/>
+          <text class="t1" x="665" y="171" text-anchor="middle">WAKELOCK</text><text class="t2" x="665" y="186" text-anchor="middle">screen on while running</text>
+          <path class="ln t" d="M200 88L110 146" marker-end="url(#aht)"/>
+          <path class="ln t" d="M186 174H204" marker-end="url(#aht)"/>
+          <path class="ln t" d="M150 200C150 222 491 222 491 202" marker-end="url(#aht)"/>
+          <path class="ln t" d="M120 200C120 234 665 234 665 202" marker-end="url(#aht)"/>
+
+          <text class="ey" x="16" y="256">PERSISTENCE &amp; DISTRIBUTION</text>
+          <rect class="box b" x="16" y="268" width="135" height="48" rx="6"/>
+          <text class="t1" x="83" y="289" text-anchor="middle">SW.JS</text><text class="t2" x="83" y="304" text-anchor="middle">network-first cache</text>
+          <rect class="box b" x="161" y="268" width="135" height="48" rx="6"/>
+          <text class="t1" x="228" y="289" text-anchor="middle">PWA · TWA APK</text><text class="t2" x="228" y="304" text-anchor="middle">Netlify + PWABuilder</text>
+          <rect class="box b" x="306" y="268" width="144" height="48" rx="6"/>
+          <text class="t1" x="378" y="289" text-anchor="middle">LOCALSTORAGE</text><text class="t2" x="378" y="304" text-anchor="middle">marbles.v1 · v: 2</text>
+          <rect class="box b" x="460" y="268" width="135" height="48" rx="6"/>
+          <text class="t1" x="527" y="289" text-anchor="middle">BUILD SCRIPT</text><text class="t2" x="527" y="304" text-anchor="middle">build_standalone.py</text>
+          <rect class="box b" x="609" y="268" width="135" height="48" rx="6"/>
+          <text class="t1" x="676" y="289" text-anchor="middle">MARBLES.HTML</text><text class="t2" x="676" y="304" text-anchor="middle">single-file copy</text>
+          <path class="ln s" d="M378 266V90" marker-start="url(#ahs)" marker-end="url(#ahs)"/>
+          <path class="ln s" d="M595 292H607" marker-end="url(#ahs)"/>
+        </svg>
+      </div>
+      <figcaption>Ember arrows are the main loop: action → store → full render. The grey loop back from dialogs feeds grown-up choices into actions. Teal arrows are the timer lane: spending starts the timer, which drives sound, the in-place clock and the wake lock without redrawing the page. The dashed sky line is persistence: the store loads from and saves to <code>localStorage</code>; the other boxes show how the same file ships, including the generated single-file copy.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">How it was built</p>
+    <h2>Six phases</h2>
+    <p class="lede">From the data model out to the phone's home screen. Open a phase to see its steps.</p>
+    <div class="phases">
+      <details class="pc p1" name="phase" open>
+        <summary class="ph"><span class="pn">01</span><span class="pt"><b>Store &amp; data model</b><span>One JSON object, safe to evolve</span></span><span class="tag">Store</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">1.1</span><div><b>Schema v2</b><p>Marbles, activities, goals, a 300-entry history and the running session in one object.</p></div></li>
+          <li><span class="sn">1.2</span><div><b>v1 → v2 migration</b><p>Rates snapped to 10, history repaired, old session shape converted, <code>setupDone</code> inferred.</p></div></li>
+          <li><span class="sn">1.3</span><div><b>Persistent storage</b><p>The app asks the browser not to evict its data when the phone is low on space.</p></div></li>
+          <li><span class="sn">1.4</span><div><b>Backup codes</b><p>Base64 JSON without the PIN; restore shows now vs backup and keeps the current PIN.</p></div></li>
+        </ol>
+      </details>
+      <details class="pc p2" name="phase">
+        <summary class="ph"><span class="pn">02</span><span class="pt"><b>Spending rules</b><span>Fair by construction</span></span><span class="tag">actions</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">2.1</span><div><b>Cost from the rate</b><p><code>ceil(minutes ÷ minutes-per-marble)</code>, always computed inside <code>spendMarble</code>, never passed in.</p></div></li>
+          <li><span class="sn">2.2</span><div><b>No borrowing</b><p>Overspending and a second concurrent timer are refused.</p></div></li>
+          <li><span class="sn">2.3</span><div><b>Same-price offer</b><p>When the chosen time is under what the marbles pay for, a button offers the full paid-for minutes.</p></div></li>
+          <li><span class="sn">2.4</span><div><b>Refund on Done</b><p>Every whole marble of unused time comes back; time played past zero is recorded.</p></div></li>
+        </ol>
+      </details>
+      <details class="pc p3" name="phase">
+        <summary class="ph"><span class="pn">03</span><span class="pt"><b>Timer engine</b><span>Reliable on a phone that sleeps</span></span><span class="tag">Timer</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">3.1</span><div><b>Wall-clock timing</b><p>An end timestamp, not a counter, so reloads and screen locks don't lose time.</p></div></li>
+          <li><span class="sn">3.2</span><div><b>Pause pot</b><p>Five minutes of pause per session; when it runs out the clock resumes by itself.</p></div></li>
+          <li><span class="sn">3.3</span><div><b>Cues, once each</b><p>A note at 1 min, two at 10 s, chime and buzz at zero; after the background only the most urgent plays.</p></div></li>
+          <li><span class="sn">3.4</span><div><b>In-place ticks</b><p><code>TimerView.update()</code> touches only clock, ring and labels, so nothing else redraws.</p></div></li>
+          <li><span class="sn">3.5</span><div><b>Wake lock</b><p>Screen stays on while running, visible and not paused; re-requested on return.</p></div></li>
+        </ol>
+      </details>
+      <details class="pc p4" name="phase">
+        <summary class="ph"><span class="pn">04</span><span class="pt"><b>Bank &amp; goals</b><span>Saving toward something bigger</span></span><span class="tag">Bank</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">4.1</span><div><b>Add and take back</b><p>Marbles move into a goal one at a time and can be withdrawn.</p></div></li>
+          <li><span class="sn">4.2</span><div><b>Claim</b><p>A Claim button appears when a goal is full.</p></div></li>
+          <li><span class="sn">4.3</span><div><b>Nothing silently lost</b><p>Deleting a goal or cutting its price refunds the banked marbles.</p></div></li>
+        </ol>
+      </details>
+      <details class="pc p5" name="phase">
+        <summary class="ph"><span class="pn">05</span><span class="pt"><b>Grown-ups, PIN &amp; usage</b><span>Locked, calm, descriptive</span></span><span class="tag">PIN</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">5.1</span><div><b>First-run PIN</b><p>Setup can't be dismissed and refuses <code>1234</code>; old installs must change it.</p></div></li>
+          <li><span class="sn">5.2</span><div><b>Lockout backoff</b><p>Five wrong tries lock the keypad for 1, 2, 4… up to 15 minutes; the lock survives reloads.</p></div></li>
+          <li><span class="sn">5.3</span><div><b>Grace window</b><p>Three minutes unlocked after a correct PIN; leaving the app locks again.</p></div></li>
+          <li><span class="sn">5.4</span><div><b>Usage chart</b><p>14 days of minutes actually played plus marbles in and out, hand-drawn SVG with finger-sized tap columns.</p></div></li>
+          <li><span class="sn">5.5</span><div><b>Accessibility</b><p>Zoom allowed, real buttons with <code>aria-pressed</code>, no clipping at 320 px.</p></div></li>
+        </ol>
+      </details>
+      <details class="pc p6" name="phase">
+        <summary class="ph"><span class="pn">06</span><span class="pt"><b>Ship it</b><span>Browser, home screen, APK</span></span><span class="tag">deploy</span><span class="chev" aria-hidden="true">›</span></summary>
+        <ol class="steps">
+          <li><span class="sn">6.1</span><div><b>PWA</b><p>Static manifest, icons and a network-first service worker; deploy with Netlify Drop.</p></div></li>
+          <li><span class="sn">6.2</span><div><b>Android APK</b><p>PWABuilder wraps the live site as a Trusted Web Activity.</p></div></li>
+          <li><span class="sn">6.3</span><div><b>Keystore hygiene</b><p><code>.gitignore</code> blocks <code>*.keystore</code> and <code>*.apk</code>; future builds reuse the same key.</p></div></li>
+          <li><span class="sn">6.4</span><div><b>Standalone file</b><p><code>build_standalone.py</code> inlines the icon and drops the service worker to make <code>marbles.html</code>.</p></div></li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Test strategy</p>
+    <h2>What keeps it fair</h2>
+    <p class="lede">Every check drives the real <code>index.html</code> in Chromium: <code>pytest tests -q</code>.</p>
+    <div class="tests">
+      <div class="tc"><h3>Rules</h3><p class="meta">pytest · playwright</p><ul>
+        <li><b>Spending</b>: cost maths, 10-minute snapping, same-price offer</li>
+        <li><b>Refusals</b>: overspending and a second timer</li>
+        <li><b>Bank</b>: add, take back, claim, refunds on delete or price cut</li>
+      </ul></div>
+      <div class="tc"><h3>Timer</h3><p class="meta">clock control in the page</p><ul>
+        <li><b>Pause budget</b> auto-resumes; manual resume spends it</li>
+        <li><b>Cues</b> play in order, and only one after the background</li>
+        <li><b>No full redraw</b> on a tick; survives a reload</li>
+        <li><b>Done</b> confirms, refunds and records minutes played</li>
+      </ul></div>
+      <div class="tc"><h3>Data &amp; security</h3><p class="meta">state seeded via localStorage</p><ul>
+        <li><b>PIN</b>: setup, forced change, lockout across reload, grace window</li>
+        <li><b>Backup</b> excludes the PIN; restore keeps it; old codes work</li>
+        <li><b>Migration</b> from v1 data to v2</li>
+        <li><b>Standalone</b>: a test fails if <code>marbles.html</code> is stale</li>
+      </ul></div>
+      <div class="tc"><h3>Manual</h3><p class="meta">on the family phone</p><ul>
+        <li>Install from Chrome and from the APK</li>
+        <li>Timer to zero with the screen left on: sound and buzz</li>
+        <li>Airplane mode launch uses the cached copy</li>
+        <li>Redeploy, relaunch online, confirm the update</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">In the repo</p>
+    <h2>Where things live</h2>
+    <div class="files">
+      <div><code>index.html</code><span>The entire app, hosted PWA version. Edit this one.</span></div>
+      <div><code>marbles.html</code><span>Generated single-file copy that works from disk.</span></div>
+      <div><code>build_standalone.py</code><span>Builds <code>marbles.html</code> from <code>index.html</code>.</span></div>
+      <div><code>sw.js · manifest.webmanifest</code><span>Offline cache and install metadata.</span></div>
+      <div><code>tests/test_marbles.py</code><span>Playwright behaviour tests.</span></div>
+      <div><code>DOCS.md</code><span>Full technical reference.</span></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">marbles · 6 phases · HTML + CSS + vanilla JS · localStorage · zero dependencies</div>
+</footer>
+</body>
+</html>
